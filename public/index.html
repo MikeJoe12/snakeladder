@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snakes and Ladders</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            min-height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow-x: hidden;
+        }
+
+        .game-container {
+            display: flex;
+            gap: 2rem;
+            padding: 2rem;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            max-width: 90vw;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .board-container {
+            width: min(80vh, 80vw);
+            height: min(80vh, 80vw);
+            position: relative;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 10px;
+        }
+
+        .board {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+        }
+
+        .player {
+            width: 5%;
+            height: 5%;
+            border-radius: 50%;
+            position: absolute;
+            transition: all 1.5s ease;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            z-index: 10;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-weight: bold;
+            font-size: min(2vh, 2vw);
+        }
+
+        .controls {
+            min-width: 300px;
+            max-width: 400px;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .setup-panel {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            margin-bottom: 20px;
+        }
+
+        .board-selection {
+            margin-bottom: 1rem;
+        }
+
+        .board-selection select {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 1rem;
+            margin-top: 0.5rem;
+        }
+
+        .file-input {
+            margin-bottom: 1rem;
+        }
+
+        .player-selection {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        select {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            background: rgba(255, 255, 255, 0.9);
+            margin-bottom: 1rem;
+            cursor: pointer;
+        }
+
+        select:focus {
+            outline: none;
+            box-shadow: 0 0 0 2px #ff4081;
+        }
+
+        .start-button {
+            padding: 12px 24px;
+            font-size: 1.1rem;
+            background: #ff4081;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 0.5rem;
+        }
+
+        .start-button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .start-button:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+        }
+
+        .player-info {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            text-align: center;
+        }
+
+        .dice-container {
+            perspective: 1000px;
+            width: 100px;
+            height: 100px;
+            margin: 2rem auto;
+        }
+
+        .dice {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transform-style: preserve-3d;
+            transition: transform 1s;
+        }
+
+        .dice.rolling {
+            animation: rolling 3s ease-out forwards;
+        }
+
+        @keyframes rolling {
+            0% { transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg); }
+            30% { transform: rotateX(720deg) rotateY(360deg) rotateZ(180deg); }
+            60% { transform: rotateX(1440deg) rotateY(720deg) rotateZ(360deg); }
+            85% { transform: rotateX(1800deg) rotateY(1080deg) rotateZ(420deg); }
+            100% { transform: var(--final-rotation); }
+        }
+
+        .dice-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: rgb(255, 255, 255);
+            border: 2px solid rgba(0, 0, 0, 0.1);
+            border-radius: 12px;
+            display: grid;
+            grid-template: repeat(3, 1fr) / repeat(3, 1fr);
+            padding: 8px;
+            box-sizing: border-box;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .dot {
+            background: transparent;
+            border-radius: 50%;
+            margin: 4px;
+        }
+
+        .front  { transform: translateZ(50px); }
+        .back   { transform: translateZ(-50px) rotateY(180deg); }
+        .right  { transform: translateX(50px) rotateY(90deg); }
+        .left   { transform: translateX(-50px) rotateY(-90deg); }
+        .top    { transform: translateY(-50px) rotateX(90deg); }
+        .bottom { transform: translateY(50px) rotateX(-90deg); }
+
+        .one .dot:nth-child(5) { background: #000 !important; }
+        .two .dot:nth-child(1),
+        .two .dot:nth-child(9) { background: #000 !important; }
+        .three .dot:nth-child(1),
+        .three .dot:nth-child(5),
+        .three .dot:nth-child(9) { background: #000 !important; }
+        .four .dot:nth-child(1),
+        .four .dot:nth-child(3),
+        .four .dot:nth-child(7),
+        .four .dot:nth-child(9) { background: #000 !important; }
+        .five .dot:nth-child(1),
+        .five .dot:nth-child(3),
+        .five .dot:nth-child(5),
+        .five .dot:nth-child(7),
+        .five .dot:nth-child(9) { background: #000 !important; }
+        .six .dot:nth-child(1),
+        .six .dot:nth-child(3),
+        .six .dot:nth-child(4),
+        .six .dot:nth-child(6),
+        .six .dot:nth-child(7),
+        .six .dot:nth-child(9) { background: #000 !important; }
+
+        .roll-button {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .roll-button:hover:not(:disabled) {
+            background: #45a049;
+        }
+
+        .roll-button:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .game-container {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .controls {
+                width: 100%;
+            }
+        }
+
+        .player-status {
+            padding: 12px;
+            margin: 8px 0;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            font-size: 1.1rem;
+        }
+
+        .current-turn {
+            background: rgba(255, 99, 71, 0.3);
+            border: 1px solid #ff6347;
+            transform: translateX(5px);
+        }
+		.restart-button {
+    padding: 12px 24px;
+    font-size: 1.1rem;
+    background: #4CAF50; /* Different color for Restart Game */
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-top: 0.5rem;
+}
+
+.restart-button:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+.restart-button:disabled {
+    background: #cccccc;
+    cursor: not-allowed;
+}
+    </style>
+	<script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+    <div class="game-container">
+        <div class="board-container">
+            <div class="board" id="board"></div>
+        </div>
+        
+        <div class="controls">
+            <div class="setup-panel" id="setupPanel">
+                <div class="board-selection">
+                    <label for="boardSelect">Select Board:</label>
+                    <select id="boardSelect" onChange="changeBoardImage()">
+                        <option value="">Select a board</option>
+                        <option value="board1">Board 1</option>
+                        <option value="board2">Board 2</option>
+                        <option value="board3">Board 3</option>
+                        <option value="board4">Board 4</option>
+                        <option value="board5">Board 5</option>
+						<option value="board6">Board 6</option>
+                    </select>
+                </div>
+                <div class="player-selection">
+                    <label for="playerCount">Number of Players:</label>
+                    <select id="playerCount">
+                        <option value="2">2 Players</option>
+                        <option value="3">3 Players</option>
+                        <option value="4">4 Players</option>
+                    </select>
+                    <button class="start-button" onclick="startGame()">Start Game</button>
+                </div>
+            </div>
+
+            <div class="player-info hidden" id="gameInfo">
+                <h3>Current Turn</h3>
+                <div id="currentPlayerInfo"></div>
+                
+                <div class="dice-container">
+                    <div class="dice" id="dice">
+                        <div class="dice-face front one">
+                            <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+                            <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+                            <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+                        </div>
+                        <div class="dice-face back six">
+                            <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+                            <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+                            <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+                        </div>
+                        <div class="dice-face right two">
+                            <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+                            <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+                            <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+                        </div>
+                        <div class="dice-face left five">
+                            <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+                            <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+                            <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+                        </div>
+                        <div class="dice-face top three">
+                            <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+                            <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+                            <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+                        </div>
+                        <div class="dice-face bottom four">
+                            <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+                            <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+                            <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+                        </div>
+                    </div>
+                </div>
+                <button class="roll-button" id="rollButton" onclick="rollDice()" disabled>Roll Dice</button>
+				<button class="restart-button" onclick="restartGame()">Restart Game</button>
+				<button class="start-button" onclick="resetGame()">Reset Game</button>
+            </div>
+
+            <!-- Add the reset button -->
+            
+            </div>
+        </div>
+    <audio id="diceSound" src="DiceRoll.mp3"></audio>
+    <audio id="ladderClimb" src="ladder.mp3"></audio>
+    <audio id="snakeBite" src="snake.mp3"></audio>
+	<script>
+	    // Connect to socket server
+    const socket = io();
+    
+    // Register as game board
+    socket.emit('registerGameBoard');
+    
+    // Listen for player rolls
+    socket.on('playerRolled', (data) => {
+        // Call the existing rollDice function with the received roll
+        game.rollDice(data.roll);
+    });
+	
+        // Board configurations
+        const boardConfigs = {
+            board1: {
+                image: '1.jpg',
+                snakes: {
+                    // ADD SNAKE POSITIONS FOR BOARD 1
+                    8: 4,
+                    18: 1,
+                    26: 10,
+                    39: 5,
+                    51: 6,
+                    54: 36,
+                    56: 1,
+                    60: 23,
+                    75: 28,
+                    83: 45,
+                    85: 59,
+                    90: 48,
+                    92: 25,
+                    97: 78,
+                    99: 63
+                },
+                ladders: {
+                    // ADD LADDER POSITIONS FOR BOARD 1
+                    3: 20,
+                    6: 14,
+                    11: 28,
+                    15: 34,
+                    17: 74,
+                    22: 37,
+                    38: 59,
+                    49: 67,
+                    61: 78,
+                    73: 86,
+                    81: 98,
+                    88: 91
+                }
+            },
+            board2: {
+                image: '2.jpg',
+                snakes: {
+                    // ADD SNAKE POSITIONS FOR BOARD 2
+                    43: 17,
+                    50: 5,
+                    56: 8,
+                    73: 15,
+                    84: 58,
+                    87: 49,
+                    98: 40
+                },
+                ladders: {
+                    // ADD LADDER POSITIONS FOR BOARD 2
+                    2: 23,
+                    6: 45,
+                    20: 59,
+                    52: 72,
+                    57: 96,
+                    71: 92
+                }
+            },
+            board3: {
+                image: '3.jpg',
+                snakes: {
+                    // ADD SNAKE POSITIONS FOR BOARD 3
+                    16: 7,
+                    59: 17,
+                    63: 19,
+                    67: 30,
+                    87: 24,
+                    93: 69,
+                    95: 75,
+					99: 77
+                },
+                ladders: {
+                    // ADD LADDER POSITIONS FOR BOARD 3
+                    9: 27,
+                    18: 37,
+                    25: 54,
+                    28: 51,
+                    56: 64,
+                    68: 88,
+					76: 97,
+					79: 100
+                }
+            },
+            board4: {
+                image: '4.jpg',
+                snakes: {
+                    // ADD SNAKE POSITIONS FOR BOARD 4
+                    27: 5,
+                    40: 3,
+                    43: 18,
+                    54: 31,
+                    66: 45,
+                    95: 77,
+                    99: 41
+                },
+                ladders: {
+                    // ADD LADDER POSITIONS FOR BOARD 4
+                    4: 25,
+                    13: 46,
+                    42: 63,
+                    50: 69,
+                    62: 81,
+                    74: 92
+                }
+            },
+            board5: {
+                image: '5.jpg',
+                snakes: {
+                    // ADD SNAKE POSITIONS FOR BOARD 5
+                    16: 6,
+                    47: 26,
+                    49: 11,
+                    56: 53,
+                    62: 19,
+                    64: 60,
+					87: 24,
+                    93: 73,
+                    95: 75,
+                    98: 78
+                },
+                ladders: {
+                    // ADD LADDER POSITIONS FOR BOARD 5
+                    2: 38,
+                    4: 14,
+                    9: 31,
+                    21: 42,
+                    28: 84,
+					37: 43,
+                    51: 67,
+                    72: 91,
+                    79: 100
+                }
+				
+			},
+			board6: {
+                image: '6.jpg',
+                snakes: {
+                    // ADD SNAKE POSITIONS FOR BOARD 6
+                    10: 6,
+                    17: 3,
+                    28: 15,
+                    63: 21,
+                    68: 49,
+                    75: 33,
+					82: 80,
+                    89: 19,
+                    95: 58,
+                    97: 88
+                },
+                ladders: {
+                    // ADD LADDER POSITIONS FOR BOARD 6
+                    8: 14,
+                    11: 32,
+                    16: 63,
+                    26: 87,
+                    38: 56,
+					41: 62,
+                    50: 72,
+                    78: 99,
+                    90: 92
+                }
+				
+				}	
+        };
+
+        function changeBoardImage() {
+            const selectedBoard = document.getElementById('boardSelect').value;
+            if (!selectedBoard) return;
+
+            const config = boardConfigs[selectedBoard];
+            if (!config) return;
+
+            // Update board image
+            document.getElementById('board').style.backgroundImage = `url(${config.image})`;
+            
+            // Update snake and ladder positions in the game instance
+            game.updateBoardConfig(config.snakes, config.ladders);
+        }
+
+        class SnakesAndLadders {
+            constructor() {
+                this.board = document.getElementById('board');
+                this.gameInfo = document.getElementById('gameInfo');
+                this.currentPlayerInfo = document.getElementById('currentPlayerInfo');
+                this.dice = document.getElementById('dice');
+                this.rollButton = document.getElementById('rollButton');
+                
+                this.players = [];
+                this.currentPlayer = 0;
+                this.isRolling = false;
+                this.positions = new Map();
+                
+                // Default snake and ladder positions
+                this.snakes = {};
+                this.ladders = {};
+                
+                this.initializeBoard();
+                window.addEventListener('resize', this.handleResize.bind(this));
+            }
+
+            updateBoardConfig(snakes, ladders) {
+                this.snakes = snakes;
+                this.ladders = ladders;
+                
+                // Reset game if it's in progress
+                if (this.players.length > 0) {
+                    this.resetGame();
+                }
+            }
+
+            handleResize() {
+                this.players.forEach(player => this.updatePlayerPosition(player));
+            }
+
+            initializeBoard() {
+                this.board.innerHTML = '';
+                this.createPositionMapping();
+            }
+
+            createPositionMapping() {
+                for (let row = 9; row >= 0; row--) {
+                    for (let col = 0; col < 10; col++) {
+                        let number;
+                        if (row % 2 === 0) {
+                            number = (row * 10) + col + 1;
+                        } else {
+                            number = (row * 10) + (10 - col);
+                        }
+                        
+                        this.positions.set(number, {
+                            x: col * 10,
+                            y: (9 - row) * 10
+                        });
+                    }
+                }
+            }
+
+initializeGame(numPlayers) {
+    const existingPlayers = document.querySelectorAll('.player');
+    existingPlayers.forEach(p => p.remove());
+
+    const colors = ['#FF4081', '#2196F3', '#4CAF50', '#FFC107'];
+    this.players = Array.from({length: numPlayers}, (_, i) => ({
+        id: i + 1,
+        color: colors[i],
+        position: 1,
+        name: `Waiting for player ${i + 1}...`
+    }));
+
+    this.players.forEach(player => {
+        const playerElement = document.createElement('div');
+        playerElement.className = 'player';
+        playerElement.id = `player${player.id}`;
+        playerElement.style.backgroundColor = player.color;
+        playerElement.textContent = player.id;
+        this.board.appendChild(playerElement);
+        this.updatePlayerPosition(player);
+    });
+
+    document.getElementById('setupPanel').classList.add('hidden');
+    this.gameInfo.classList.remove('hidden');
+    this.rollButton.disabled = false;
+    this.updatePlayerInfo();
+}
+
+
+            updatePlayerPosition(player) {
+                const playerElement = document.getElementById(`player${player.id}`);
+                if (!playerElement) return;
+
+                const position = this.positions.get(player.position);
+                if (!position) return;
+
+                playerElement.style.left = `${position.x + 2.5}%`;
+                playerElement.style.top = `${position.y + 2.5}%`;
+            }
+
+async rollDice(forcedRoll = null) {
+    if (this.isRolling) return;
+    
+    this.isRolling = true;
+    this.rollButton.disabled = true;
+
+    // Play dice roll sound
+    const diceSound = document.getElementById('diceSound');
+    diceSound.currentTime = 0;
+    diceSound.play().catch(err => console.log('Error playing sound:', err));
+
+    // Use the forced roll if provided, otherwise generate random
+    const result = forcedRoll !== null ? forcedRoll : Math.floor(Math.random() * 6) + 1;
+
+    const rotations = {
+        1: 'rotateX(0deg) rotateY(0deg)',
+        2: 'rotateX(0deg) rotateY(-90deg)',
+        3: 'rotateX(-90deg) rotateY(0deg)',
+        4: 'rotateX(90deg) rotateY(0deg)',
+        5: 'rotateX(0deg) rotateY(90deg)',
+        6: 'rotateX(180deg) rotateY(0deg)'
+    };
+
+    this.dice.style.setProperty('--final-rotation', rotations[result]);
+    this.dice.classList.add('rolling');
+
+    await new Promise(resolve => setTimeout(resolve, 3000));
+    
+    this.dice.classList.remove('rolling');
+    this.dice.style.transform = rotations[result];
+
+    await this.movePlayer(result);
+
+    // Ensure the player only wins if they land exactly on position 100
+    if (this.players[this.currentPlayer].position === 100) {
+        alert(`Player ${this.players[this.currentPlayer].id} wins!`);
+        this.resetGame();
+        return;
+    }
+
+    this.currentPlayer = (this.currentPlayer + 1) % this.players.length;
+    this.updatePlayerInfo();
+    
+    this.isRolling = false;
+    this.rollButton.disabled = false;
+}
+
+
+
+            async movePlayer(spaces) {
+                const player = this.players[this.currentPlayer];
+                let newPosition = player.position + spaces;
+
+                // Prevent moving past 100
+                if (newPosition > 100) {
+                    newPosition = player.position;
+                }
+
+                player.position = newPosition;
+                this.updatePlayerPosition(player);
+
+                await new Promise(resolve => setTimeout(resolve, 500));
+
+                // Handle snakes
+                if (this.snakes[newPosition]) {
+                    const snakeBite = document.getElementById('snakeBite');
+                    snakeBite.currentTime = 0;
+                    try {
+                        await snakeBite.play();
+                    } catch (err) {
+                        console.log('Error playing snake sound:', err);
+                    }
+                    player.position = this.snakes[newPosition];
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    this.updatePlayerPosition(player);
+                }
+                
+                // Handle ladders
+                if (this.ladders[newPosition]) {
+                    const ladderClimb = document.getElementById('ladderClimb');
+                    ladderClimb.currentTime = 0;
+                    try {
+                        await ladderClimb.play();
+                    } catch (err) {
+                        console.log('Error playing ladder sound:', err);
+                    }
+                    player.position = this.ladders[newPosition];
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    this.updatePlayerPosition(player);
+                }
+            }
+
+updatePlayerInfo() {
+    this.currentPlayerInfo.innerHTML = this.players.map((player, index) => `
+        <div class="player-status ${index === this.currentPlayer ? 'current-turn' : ''}">
+            <span style="color: ${player.color}">${player.name}</span>
+            <br>
+            Position: ${player.position}
+            ${index === this.currentPlayer ? ' (Current Turn)' : ''}
+        </div>
+    `).join('');
+}
+updatePlayerNames(players) {
+    players.forEach((player, index) => {
+        if (index < this.players.length) {
+            this.players[index].name = player.username;
+        }
+    });
+    this.updatePlayerInfo();
+
+}
+
+
+            resetGame() {
+                this.players.forEach(player => {
+                    player.position = 1;
+                    this.updatePlayerPosition(player);
+                });
+                this.currentPlayer = 0;
+                this.updatePlayerInfo();
+                this.rollButton.disabled = false;
+				
+            }
+        }
+		
+        function restartGame() {
+            // Reset the game state without kicking players
+            game.resetGame();
+            socket.emit('restartGame'); // Notify the server to restart the game
+        }
+
+        // Listen for the restart event from the server
+        socket.on('gameRestarted', () => {
+            // Reset the local game state when the server broadcasts a restart
+            game.resetGame();
+        });		
+
+        // Game instance
+        const game = new SnakesAndLadders();
+		
+		        // Reset game function
+ function resetGame() {
+            // Reset the local game state
+            game.resetGame();
+
+            // Show the setup panel and hide the game info
+            document.getElementById('setupPanel').classList.remove('hidden');
+            document.getElementById('gameInfo').classList.add('hidden');
+
+            // Emit the reset event to the server
+            socket.emit('resetGame');
+        }
+
+        // Listen for the reset event from the server
+        socket.on('gameReset', () => {
+            // Reset the local game state when the server broadcasts a reset
+            game.resetGame();
+
+            // Show the setup panel and hide the game info
+            document.getElementById('setupPanel').classList.remove('hidden');
+            document.getElementById('gameInfo').classList.add('hidden');
+        });
+
+
+
+
+        // Start game
+       function startGame() {
+            const numPlayers = parseInt(document.getElementById('playerCount').value);
+            if (numPlayers >= 2 && numPlayers <= 4) {
+                game.initializeGame(numPlayers);
+                socket.emit('startGame'); // Notify the server that the game has started
+				
+				
+}
+        }
+        // Roll dice
+        function rollDice() {
+            game.rollDice();
+        }
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            const dice = document.getElementById('dice');
+            dice.style.transform = 'rotateX(-20deg) rotateY(-20deg)';
+        });
+		socket.on('playerJoined', (data) => {
+    if (game.players) {
+        game.updatePlayerNames(data.players);
+    }
+});
+    </script>
+	</body>
+</html>

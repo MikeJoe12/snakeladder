@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snakes and Ladders - Player</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 100%;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            text-align: center;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        #loginSection, #gameSection {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 15px;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        h2 {
+            color: white;
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
+
+        input {
+            width: 100%;
+            max-width: 300px;
+            padding: 12px 20px;
+            margin: 10px 0;
+            font-size: 16px;
+            border: none;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.9);
+        }
+
+        input:focus {
+            outline: none;
+            box-shadow: 0 0 0 2px #4CAF50;
+        }
+
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            padding: 15px 30px;
+            font-size: 18px;
+            margin: 10px;
+            transition: all 0.3s ease;
+            width: 100%;
+            max-width: 300px;
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        #gameStatus {
+            margin: 20px 0;
+            font-size: 20px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            line-height: 1.4;
+        }
+
+        .player-list {
+            text-align: left;
+            margin: 20px 0;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 8px;
+        }
+
+        .player-list h3 {
+            margin-bottom: 10px;
+            color: white;
+        }
+
+        .player-list div {
+            padding: 8px;
+            margin: 5px 0;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+            font-size: 16px;
+        }
+
+        #rollButton {
+            background-color: #ff4081;
+            font-size: 24px;
+            padding: 20px 40px;
+            margin: 20px auto;
+            display: block;
+            width: 100%;
+            max-width: 300px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        #rollButton:disabled {
+            background-color: #cccccc;
+        }
+
+        .dice-animation {
+            animation: shake 0.5s ease-in-out;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px) rotate(-5deg); }
+            75% { transform: translateX(5px) rotate(5deg); }
+        }
+
+        /* Mobile Optimizations */
+        @media (max-width: 480px) {
+            body {
+                padding: 10px;
+            }
+
+            .container {
+                padding: 10px;
+            }
+
+            h2 {
+                font-size: 20px;
+            }
+
+            input {
+                font-size: 16px;
+                padding: 10px 15px;
+            }
+
+            button {
+                padding: 12px 24px;
+                font-size: 16px;
+            }
+
+            #rollButton {
+                font-size: 20px;
+                padding: 15px 30px;
+            }
+
+            #gameStatus {
+                font-size: 18px;
+                padding: 12px;
+            }
+
+            .player-list div {
+                padding: 6px;
+                font-size: 14px;
+            }
+        }
+
+        /* Landscape Orientation */
+        @media (max-height: 500px) and (orientation: landscape) {
+            body {
+                padding: 10px;
+            }
+
+            .container {
+                display: flex;
+                flex-direction: row;
+                gap: 20px;
+                max-width: 900px;
+            }
+
+            #loginSection, #gameSection {
+                flex: 1;
+                margin: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="loginSection">
+            <h2>Join Game</h2>
+            <input type="text" id="username" placeholder="Enter your name">
+            <button id="loginButton" onclick="login()">Join Game</button>
+        </div>
+
+        <div id="gameSection" class="hidden">
+            <h2>Snakes & Ladders</h2>
+            <div id="gameStatus"></div>
+            <div id="playerList" class="player-list"></div>
+            <button id="rollButton" onclick="rollDice()" disabled>Roll Dice 🎲</button>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        let socket;
+        let myUsername;
+
+        // 🔄 Restore session on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('Checking for existing session...'); 
+            const username = localStorage.getItem('snakesAndLaddersUsername');
+            const savedTurn = localStorage.getItem('snakesAndLaddersTurn');
+
+            if (username) {
+                console.log(`Found existing session for: ${username}`); 
+                document.getElementById('username').value = username;
+                login(username, savedTurn);
+            } else {
+                console.log('No existing session found.');
+            }
+        });
+
+        function login(existingUsername = null, savedTurn = null) {
+            const usernameInput = document.getElementById('username');
+            const username = existingUsername || usernameInput.value.trim();
+            if (!username) return;
+
+            localStorage.setItem('snakesAndLaddersUsername', username);
+            myUsername = username;
+            
+            if (!socket || !socket.connected) {
+                socket = io(); // Ensure only one socket connection
+            }
+
+            console.log(`Attempting to login as: ${username}`);
+            socket.emit('login', username);
+
+            // ❌ Handle login error (game not started)
+            socket.on('loginError', (message) => {
+                alert(message);
+            });
+
+            // ✅ Handle successful login
+socket.on('loginSuccess', (data) => {
+    showGameSection();
+    updateGameState(data);
+    if (data.currentPlayer === myUsername) {
+        updateCurrentTurn(myUsername);
+    }
+});
+
+            // 🔄 Update game state when a player joins
+            socket.on('playerJoined', (data) => {
+                updateGameState(data);
+            });
+
+            // 🔄 Update game state when a player leaves
+            socket.on('playerLeft', (data) => {
+                updateGameState(data);
+            });
+
+            // 🎲 Handle dice roll updates
+            socket.on('diceRolled', (data) => {
+                const gameStatus = document.getElementById('gameStatus');
+                gameStatus.innerHTML = `${data.username} rolled a ${data.roll}`;
+                gameStatus.classList.add('dice-animation');
+                setTimeout(() => {
+                    gameStatus.classList.remove('dice-animation');
+                }, 500);
+            });
+
+            // 🔄 Restore turn status
+socket.on('nextTurn', (data) => {
+    updateCurrentTurn(data.currentPlayer);
+});
+
+socket.on('restoreTurn', (data) => {
+    console.log(`Restoring turn for: ${data.currentPlayer}`);
+    updateCurrentTurn(data.currentPlayer);
+});
+
+            // 🚀 Handle game reset
+            socket.on('forceLogout', () => {
+                localStorage.removeItem('snakesAndLaddersUsername');
+                localStorage.removeItem('snakesAndLaddersTurn');
+                logout();
+                alert('The game has been reset by the host. Please rejoin.');
+            });
+
+            // 🟢 Allow login when the game starts
+            socket.on('gameStarted', () => {
+                document.getElementById('username').disabled = false;
+                document.getElementById('loginButton').disabled = false;
+            });
+        }
+
+        function showGameSection() {
+            document.getElementById('loginSection').classList.add('hidden');
+            document.getElementById('gameSection').classList.remove('hidden');
+        }
+
+        function updateGameState(data) {
+            console.log('Updating game state:', data);
+            const playerList = document.getElementById('playerList');
+            playerList.innerHTML = '<h3>Players:</h3>' + 
+                data.players.map(p => `<div>${p.username}</div>`).join('');
+            
+            updateCurrentTurn(data.currentPlayer);
+        }
+
+function updateCurrentTurn(currentPlayer) {
+    localStorage.setItem('snakesAndLaddersTurn', currentPlayer);
+    const isMyTurn = currentPlayer === myUsername;
+    const rollButton = document.getElementById('rollButton');
+    const gameStatus = document.getElementById('gameStatus');
+
+    rollButton.disabled = !isMyTurn;
+
+    if (isMyTurn) {
+        gameStatus.innerHTML = "🎲 It's your turn! 🎲";
+    } else {
+        gameStatus.innerHTML = `Waiting for ${currentPlayer}'s turn...`;
+    }
+}
+
+        function rollDice() {
+            console.log(`${myUsername} rolling dice...`);
+            const rollButton = document.getElementById('rollButton');
+            rollButton.classList.add('dice-animation');
+            setTimeout(() => {
+                rollButton.classList.remove('dice-animation');
+            }, 500);
+            socket.emit('rollDice');
+        }
+
+        function logout() {
+            if (socket) {
+                socket.disconnect();
+            }
+            document.getElementById('loginSection').classList.remove('hidden');
+            document.getElementById('gameSection').classList.add('hidden');
+            document.getElementById('username').value = '';
+        }
+
+        // Prevent zoom on double tap on mobile
+        document.addEventListener('dblclick', function(e) {
+            e.preventDefault();
+        });
+    </script>
+</body>
+
+</html>
