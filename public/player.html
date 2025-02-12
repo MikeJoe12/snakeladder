@@ -263,7 +263,6 @@
 
             // ✅ Handle successful login
 socket.on('loginSuccess', (data) => {
-console.log('Connected to server');
     showGameSection();
     updateGameState(data);
     if (data.currentPlayer === myUsername) {
@@ -283,7 +282,6 @@ console.log('Connected to server');
 
             // 🎲 Handle dice roll updates
             socket.on('diceRolled', (data) => {
-			console.log('Dice rolled:', data);
                 const gameStatus = document.getElementById('gameStatus');
                 gameStatus.innerHTML = `${data.username} rolled a ${data.roll}`;
                 gameStatus.classList.add('dice-animation');
