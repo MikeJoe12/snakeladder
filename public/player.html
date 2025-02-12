@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Snakes and Ladders - Player</title>
+    <script src="https://cdn.jsdelivr.net/npm/notiflix@3.2.7/dist/notiflix-aio-3.2.7.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -97,7 +98,7 @@
             line-height: 1.4;
         }
 
-        .player-list {
+        #playerList {
             text-align: left;
             margin: 20px 0;
             background: rgba(255, 255, 255, 0.1);
@@ -105,12 +106,12 @@
             border-radius: 8px;
         }
 
-        .player-list h3 {
+        #playerList h3 {
             margin-bottom: 10px;
             color: white;
         }
 
-        .player-list div {
+        #playerList div {
             padding: 8px;
             margin: 5px 0;
             background: rgba(255, 255, 255, 0.05);
@@ -119,7 +120,7 @@
         }
 
         #rollButton {
-            background-color: #ff4081;
+            background-color: #4CAF50;
             font-size: 24px;
             padding: 20px 40px;
             margin: 20px auto;
@@ -145,7 +146,6 @@
             75% { transform: translateX(5px) rotate(5deg); }
         }
 
-        /* Mobile Optimizations */
         @media (max-width: 480px) {
             body {
                 padding: 10px;
@@ -167,11 +167,13 @@
             button {
                 padding: 12px 24px;
                 font-size: 16px;
+				
             }
 
             #rollButton {
-                font-size: 20px;
-                padding: 15px 30px;
+                font-size: 30px;
+                padding: 35px 40px;
+				
             }
 
             #gameStatus {
@@ -179,28 +181,9 @@
                 padding: 12px;
             }
 
-            .player-list div {
+            #playerList div {
                 padding: 6px;
                 font-size: 14px;
-            }
-        }
-
-        /* Landscape Orientation */
-        @media (max-height: 500px) and (orientation: landscape) {
-            body {
-                padding: 10px;
-            }
-
-            .container {
-                display: flex;
-                flex-direction: row;
-                gap: 20px;
-                max-width: 900px;
-            }
-
-            #loginSection, #gameSection {
-                flex: 1;
-                margin: 0;
             }
         }
     </style>
@@ -208,15 +191,15 @@
 <body>
     <div class="container">
         <div id="loginSection">
-            <h2>Join Game</h2>
+            <h2>Join Snakes & Ladders</h2>
             <input type="text" id="username" placeholder="Enter your name">
             <button id="loginButton" onclick="login()">Join Game</button>
         </div>
 
         <div id="gameSection" class="hidden">
-            <h2>Snakes & Ladders</h2>
+            <h2>Welcome, <span id="playerName"></span>!</h2>
             <div id="gameStatus"></div>
-            <div id="playerList" class="player-list"></div>
+            <div id="playerList"></div>
             <button id="rollButton" onclick="rollDice()" disabled>Roll Dice 🎲</button>
         </div>
     </div>
@@ -225,94 +208,174 @@
     <script>
         let socket;
         let myUsername;
+        let reconnectAttempts = 0;
+        const maxReconnectAttempts = 5;
 
-        // 🔄 Restore session on page load
-        document.addEventListener('DOMContentLoaded', () => {
-            console.log('Checking for existing session...'); 
-            const username = localStorage.getItem('snakesAndLaddersUsername');
-            const savedTurn = localStorage.getItem('snakesAndLaddersTurn');
-
-            if (username) {
-                console.log(`Found existing session for: ${username}`); 
-                document.getElementById('username').value = username;
-                login(username, savedTurn);
-            } else {
-                console.log('No existing session found.');
-            }
+        // Initialize Notiflix
+        Notiflix.Report.init({
+            width: '360px',
+            backgroundColor: '#f8f8f8',
+            borderRadius: '12px',
+            backOverlay: true,
+            backOverlayClickToClose: false,
+            fontFamily: 'inherit',
+            svgSize: '80px',
+            plainText: true,
+            titleFontSize: '18px',
+            titleMaxLength: 34,
+            messageFontSize: '15px',
+            buttonFontSize: '14px',
+            cssAnimation: true,
+            cssAnimationDuration: 300,
+            cssAnimationStyle: 'fade',
+            buttonBackground: '#ff6347',
+            buttonBorderRadius: '8px',
+            buttonFontSize: '14px',
+            buttonMaxLength: 34,
         });
 
-        function login(existingUsername = null, savedTurn = null) {
-            const usernameInput = document.getElementById('username');
-            const username = existingUsername || usernameInput.value.trim();
-            if (!username) return;
+        function showSuccess(message, title = 'Success') {
+            Notiflix.Report.success(title, message, 'OK');
+        }
 
-            localStorage.setItem('snakesAndLaddersUsername', username);
-            myUsername = username;
-            
-            if (!socket || !socket.connected) {
-                socket = io(); // Ensure only one socket connection
-            }
+        function showError(message, title = 'Error') {
+            Notiflix.Report.failure(title, message, 'OK');
+        }
 
-            console.log(`Attempting to login as: ${username}`);
-            socket.emit('login', username);
+        function showWarning(message, title = 'Warning') {
+            Notiflix.Report.warning(title, message, 'OK');
+        }
 
-            // ❌ Handle login error (game not started)
-            socket.on('loginError', (message) => {
-                alert(message);
+        function initializeSocket() {
+            socket = io({
+                reconnection: true,
+                reconnectionAttempts: maxReconnectAttempts,
+                reconnectionDelay: 1000,
+                reconnectionDelayMax: 5000,
+                timeout: 20000
             });
 
-            // ✅ Handle successful login
-socket.on('loginSuccess', (data) => {
-    showGameSection();
-    updateGameState(data);
-    if (data.currentPlayer === myUsername) {
-        updateCurrentTurn(myUsername);
-    }
-});
+            // Keep-alive ping
+            setInterval(() => {
+                if (socket.connected) {
+                    socket.emit('ping');
+                }
+            }, 25000);
 
-            // 🔄 Update game state when a player joins
+            // Handle reconnection
+            socket.on('connect', () => {
+                console.log('Connected to server');
+                reconnectAttempts = 0;
+                
+                // If we have stored username, try to rejoin
+                const storedUsername = localStorage.getItem('snakesAndLaddersUsername');
+                if (storedUsername) {
+                    socket.emit('login', storedUsername);
+                }
+            });
+
+            socket.on('disconnect', () => {
+                console.log('Disconnected from server');
+                showWarning('Connection lost. Attempting to reconnect...');
+            });
+
+            socket.on('connect_error', (error) => {
+                console.log('Connection error:', error);
+                reconnectAttempts++;
+                
+                if (reconnectAttempts >= maxReconnectAttempts) {
+                    showError('Connection lost. Please refresh the page.');
+                }
+            });
+
+            // Socket event handlers
+            socket.on('loginSuccess', (data) => {
+                showGameSection();
+                updateGameState(data);
+                if (data.currentPlayer === myUsername) {
+                    updateCurrentTurn(myUsername);
+                }
+                showSuccess('Successfully joined the game!', '🎮 Welcome');
+                document.getElementById('playerName').textContent = myUsername;
+                document.title = `Snakes & Ladders - ${myUsername}`;
+            });
+
+            socket.on('loginError', (message) => {
+                showError(message);
+                document.getElementById('loginButton').disabled = false;
+            });
+
             socket.on('playerJoined', (data) => {
                 updateGameState(data);
             });
 
-            // 🔄 Update game state when a player leaves
             socket.on('playerLeft', (data) => {
                 updateGameState(data);
             });
 
-            // 🎲 Handle dice roll updates
             socket.on('diceRolled', (data) => {
                 const gameStatus = document.getElementById('gameStatus');
-                gameStatus.innerHTML = `${data.username} rolled a ${data.roll}`;
+                if (data.username === myUsername) {
+                   // showSuccess(`You rolled a ${data.roll}! 🎲`, 'Nice Roll!');
+                }
+                //gameStatus.textContent = `${data.username} rolled a ${data.roll}`;
                 gameStatus.classList.add('dice-animation');
                 setTimeout(() => {
                     gameStatus.classList.remove('dice-animation');
                 }, 500);
             });
 
-            // 🔄 Restore turn status
-socket.on('nextTurn', (data) => {
-    updateCurrentTurn(data.currentPlayer);
-});
+            socket.on('nextTurn', (data) => {
+                updateCurrentTurn(data.currentPlayer);
+            });
 
-socket.on('restoreTurn', (data) => {
-    console.log(`Restoring turn for: ${data.currentPlayer}`);
-    updateCurrentTurn(data.currentPlayer);
-});
+            socket.on('restoreTurn', (data) => {
+                console.log(`Restoring turn for: ${data.currentPlayer}`);
+                updateCurrentTurn(data.currentPlayer);
+            });
 
-            // 🚀 Handle game reset
             socket.on('forceLogout', () => {
                 localStorage.removeItem('snakesAndLaddersUsername');
                 localStorage.removeItem('snakesAndLaddersTurn');
                 logout();
-                alert('The game has been reset by the host. Please rejoin.');
+                showWarning('The game has been reset by the host. Please rejoin.');
             });
 
-            // 🟢 Allow login when the game starts
             socket.on('gameStarted', () => {
                 document.getElementById('username').disabled = false;
                 document.getElementById('loginButton').disabled = false;
             });
+
+            socket.on('gameStatus', (status) => {
+                const gameStatusDiv = document.getElementById('gameStatus');
+                const loginButton = document.getElementById('loginButton');
+                
+                if (!status.exists) {
+                    gameStatusDiv.textContent = 'Waiting for host to start the game...';
+                    loginButton.disabled = true;
+                } else {
+                    gameStatusDiv.textContent = `Game ready: ${status.currentPlayers}/${status.playerCount} players joined`;
+                    loginButton.disabled = false;
+                }
+            });
+        }
+
+        function login(existingUsername = null) {
+            const username = existingUsername || document.getElementById('username').value.trim();
+            if (!username) {
+                showError('Please enter your name');
+                return;
+            }
+
+            document.getElementById('loginButton').disabled = true;
+            myUsername = username;
+            localStorage.setItem('snakesAndLaddersUsername', username);
+            
+            if (!socket || !socket.connected) {
+                initializeSocket();
+            }
+            
+            socket.emit('login', username);
         }
 
         function showGameSection() {
@@ -321,38 +384,39 @@ socket.on('restoreTurn', (data) => {
         }
 
         function updateGameState(data) {
-            console.log('Updating game state:', data);
             const playerList = document.getElementById('playerList');
             playerList.innerHTML = '<h3>Players:</h3>' + 
-                data.players.map(p => `<div>${p.username}</div>`).join('');
+                data.players.map(p => `<div>${p.username}${p.username === myUsername ? ' (You)' : ''}</div>`).join('');
             
             updateCurrentTurn(data.currentPlayer);
         }
 
-function updateCurrentTurn(currentPlayer) {
-    localStorage.setItem('snakesAndLaddersTurn', currentPlayer);
-    const isMyTurn = currentPlayer === myUsername;
-    const rollButton = document.getElementById('rollButton');
-    const gameStatus = document.getElementById('gameStatus');
-
-    rollButton.disabled = !isMyTurn;
-
-    if (isMyTurn) {
-        gameStatus.innerHTML = "🎲 It's your turn! 🎲";
-    } else {
-        gameStatus.innerHTML = `Waiting for ${currentPlayer}'s turn...`;
-    }
-}
-
-        function rollDice() {
-            console.log(`${myUsername} rolling dice...`);
+        function updateCurrentTurn(currentPlayer) {
+            localStorage.setItem('snakesAndLaddersTurn', currentPlayer);
+            const isMyTurn = currentPlayer === myUsername;
             const rollButton = document.getElementById('rollButton');
-            rollButton.classList.add('dice-animation');
-            setTimeout(() => {
-                rollButton.classList.remove('dice-animation');
-            }, 500);
-            socket.emit('rollDice');
+            const gameStatus = document.getElementById('gameStatus');
+
+            rollButton.disabled = !isMyTurn;
+
+            if (isMyTurn) {
+                gameStatus.textContent = "🎲 It's your turn! 🎲";
+                document.title = `Your Turn! - ${myUsername}`;
+            } else {
+                gameStatus.textContent = `Waiting for ${currentPlayer}'s turn...`;
+                document.title = `Snakes & Ladders - ${myUsername}`;
+            }
         }
+
+function rollDice() {
+    const rollButton = document.getElementById('rollButton');
+    rollButton.disabled = true;  // Disable immediately
+    rollButton.classList.add('dice-animation');
+    setTimeout(() => {
+        rollButton.classList.remove('dice-animation');
+    }, 500);
+    socket.emit('rollDice');
+}
 
         function logout() {
             if (socket) {
@@ -361,7 +425,54 @@ function updateCurrentTurn(currentPlayer) {
             document.getElementById('loginSection').classList.remove('hidden');
             document.getElementById('gameSection').classList.add('hidden');
             document.getElementById('username').value = '';
+            document.title = 'Snakes & Ladders - Player';
         }
+
+        // Handle page visibility changes
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                if (!socket || !socket.connected) {
+                    initializeSocket();
+                }
+            }
+        });
+
+        // Handle screen lock/unlock on mobile
+        if ('wakeLock' in navigator) {
+            let wakeLock = null;
+            
+            const requestWakeLock = async () => {
+                try {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                } catch (err) {
+                    console.log('Wake Lock error:', err);
+                }
+            };
+
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'visible' && !wakeLock) {
+                    requestWakeLock();
+                }
+            });
+
+            requestWakeLock();
+        }
+
+        // Event listeners
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeSocket();
+            const username = localStorage.getItem('snakesAndLaddersUsername');
+            if (username) {
+                document.getElementById('username').value = username;
+                login(username);
+            }
+        });
+
+        document.getElementById('username').addEventListener('keypress', (event) => {
+            if (event.key === 'Enter' && !document.getElementById('loginButton').disabled) {
+                login();
+            }
+        });
 
         // Prevent zoom on double tap on mobile
         document.addEventListener('dblclick', function(e) {
@@ -369,5 +480,4 @@ function updateCurrentTurn(currentPlayer) {
         });
     </script>
 </body>
-
 </html>

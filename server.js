@@ -5,11 +5,19 @@ const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
-const io = socketIO(server);
+const io = socketIO(server, {
+    pingTimeout: 60000,
+    pingInterval: 25000,
+    cors: {
+        origin: "*",
+        methods: ["GET", "POST"]
+    }
+});
 
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Game state
+let isMoving = false;
 let players = [];
 let currentPlayerIndex = 0;
 let gameBoard = null;
@@ -21,6 +29,10 @@ io.on('connection', (socket) => {
     // Handle game board connection
     socket.on('registerGameBoard', () => {
         gameBoard = socket;
+    });
+	
+	socket.on('ping', () => {
+        socket.emit('pong');
     });
 
     // Handle start game
@@ -88,38 +100,41 @@ io.on('connection', (socket) => {
     });
 
     // Handle dice roll
-    socket.on('rollDice', () => {
-        if (players.length === 0) return;
-        const currentPlayer = players[currentPlayerIndex];
+socket.on('rollDice', () => {
+    if (players.length === 0 || isMoving) return;
+    const currentPlayer = players[currentPlayerIndex];
 
-        if (!currentPlayer || currentPlayer.id !== socket.id) {
-            return;
-        }
+    if (!currentPlayer || currentPlayer.id !== socket.id) {
+        return;
+    }
 
-        const roll = Math.floor(Math.random() * 6) + 1;
+    isMoving = true;  // Set moving flag
+    const roll = Math.floor(Math.random() * 6) + 1;
 
-        io.emit('diceRolled', {
-            username: currentPlayer.username,
-            roll: roll
-        });
-
-        if (gameBoard) {
-            gameBoard.emit('playerRolled', {
-                roll: roll,
-                playerId: currentPlayerIndex + 1,
-                username: currentPlayer.username
-            });
-        }
-
-        // Move to next player's turn
-        currentPlayerIndex = (currentPlayerIndex + 1) % players.length;
-        
-        io.emit('nextTurn', {
-            currentPlayer: players[currentPlayerIndex]?.username || null
-        });
-
+    io.emit('diceRolled', {
+        username: currentPlayer.username,
+        roll: roll
     });
 
+    if (gameBoard) {
+        gameBoard.emit('playerRolled', {
+            roll: roll,
+            playerId: currentPlayerIndex + 1,
+            username: currentPlayer.username
+        });
+    }
+});
+
+// Add this new handler
+socket.on('moveComplete', () => {
+    isMoving = false;
+    // Move to next player's turn
+    currentPlayerIndex = (currentPlayerIndex + 1) % players.length;
+    
+    io.emit('nextTurn', {
+        currentPlayer: players[currentPlayerIndex]?.username || null
+    });
+});
     // Handle reset game
     socket.on('resetGame', () => {
         players = [];

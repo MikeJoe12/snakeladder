@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<script src="https://cdn.jsdelivr.net/npm/notiflix@3.2.7/dist/notiflix-aio-3.2.7.min.js"></script>
     <title>Snakes and Ladders</title>
     <style>
         body {
@@ -380,6 +381,7 @@
     <audio id="diceSound" src="DiceRoll.mp3"></audio>
     <audio id="ladderClimb" src="ladder.mp3"></audio>
     <audio id="snakeBite" src="snake.mp3"></audio>
+	<audio id="winSound" src="win.mp3"></audio>
 	<script>
 	    // Connect to socket server
     const socket = io();
@@ -487,6 +489,7 @@
                     43: 18,
                     54: 31,
                     66: 45,
+					89: 53,
                     95: 77,
                     99: 41
                 },
@@ -548,7 +551,7 @@
                     // ADD LADDER POSITIONS FOR BOARD 6
                     8: 14,
                     11: 32,
-                    16: 63,
+                    16: 36,
                     26: 87,
                     38: 56,
 					41: 62,
@@ -707,7 +710,11 @@ async rollDice(forcedRoll = null) {
 
     // Ensure the player only wins if they land exactly on position 100
     if (this.players[this.currentPlayer].position === 100) {
-        alert(`Player ${this.players[this.currentPlayer].id} wins!`);
+    const winSound = document.getElementById('winSound');
+    winSound.currentTime = 0;
+    winSound.play().catch(err => console.log('Error playing sound:', err));
+        showSuccess(`🎉 Congratulations! ${this.players[this.currentPlayer].name} wins the game! 🎉`, '👑 Snakes & Ladders WINNER!');
+		//alert(`Player ${this.players[this.currentPlayer].id} wins!`);
         this.resetGame();
         return;
     }
@@ -721,48 +728,51 @@ async rollDice(forcedRoll = null) {
 
 
 
-            async movePlayer(spaces) {
-                const player = this.players[this.currentPlayer];
-                let newPosition = player.position + spaces;
+async movePlayer(spaces) {
+    const player = this.players[this.currentPlayer];
+    let newPosition = player.position + spaces;
 
-                // Prevent moving past 100
-                if (newPosition > 100) {
-                    newPosition = player.position;
-                }
+    // Prevent moving past 100
+    if (newPosition > 100) {
+        newPosition = player.position;
+    }
 
-                player.position = newPosition;
-                this.updatePlayerPosition(player);
+    player.position = newPosition;
+    this.updatePlayerPosition(player);
 
-                await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise(resolve => setTimeout(resolve, 500));
 
-                // Handle snakes
-                if (this.snakes[newPosition]) {
-                    const snakeBite = document.getElementById('snakeBite');
-                    snakeBite.currentTime = 0;
-                    try {
-                        await snakeBite.play();
-                    } catch (err) {
-                        console.log('Error playing snake sound:', err);
-                    }
-                    player.position = this.snakes[newPosition];
-                    await new Promise(resolve => setTimeout(resolve, 500));
-                    this.updatePlayerPosition(player);
-                }
-                
-                // Handle ladders
-                if (this.ladders[newPosition]) {
-                    const ladderClimb = document.getElementById('ladderClimb');
-                    ladderClimb.currentTime = 0;
-                    try {
-                        await ladderClimb.play();
-                    } catch (err) {
-                        console.log('Error playing ladder sound:', err);
-                    }
-                    player.position = this.ladders[newPosition];
-                    await new Promise(resolve => setTimeout(resolve, 500));
-                    this.updatePlayerPosition(player);
-                }
-            }
+    // Handle snakes
+    if (this.snakes[newPosition]) {
+        const snakeBite = document.getElementById('snakeBite');
+        snakeBite.currentTime = 0;
+        try {
+            await snakeBite.play();
+        } catch (err) {
+            console.log('Error playing snake sound:', err);
+        }
+        player.position = this.snakes[newPosition];
+        await new Promise(resolve => setTimeout(resolve, 500));
+        this.updatePlayerPosition(player);
+    }
+    
+    // Handle ladders
+    if (this.ladders[newPosition]) {
+        const ladderClimb = document.getElementById('ladderClimb');
+        ladderClimb.currentTime = 0;
+        try {
+            await ladderClimb.play();
+        } catch (err) {
+            console.log('Error playing ladder sound:', err);
+        }
+        player.position = this.ladders[newPosition];
+        await new Promise(resolve => setTimeout(resolve, 500));
+        this.updatePlayerPosition(player);
+    }
+
+    // Notify server that movement is complete
+    socket.emit('moveComplete');
+}
 
 updatePlayerInfo() {
     this.currentPlayerInfo.innerHTML = this.players.map((player, index) => `
@@ -797,7 +807,7 @@ updatePlayerNames(players) {
             }
         }
 		
-        function restartGame() {
+function restartGame() {
             // Reset the game state without kicking players
             game.resetGame();
             socket.emit('restartGame'); // Notify the server to restart the game
@@ -863,6 +873,40 @@ updatePlayerNames(players) {
         game.updatePlayerNames(data.players);
     }
 });
+// Initialize Notiflix
+Notiflix.Report.init({
+    width: '360px',
+    backgroundColor: '#f8f8f8',
+    borderRadius: '12px',
+    backOverlay: true,
+    backOverlayClickToClose: false,
+    fontFamily: 'inherit',
+    svgSize: '80px',
+    plainText: true,
+    titleFontSize: '18px',
+    titleMaxLength: 34,
+    messageFontSize: '15px',
+    buttonFontSize: '14px',
+    cssAnimation: true,
+    cssAnimationDuration: 300,
+    cssAnimationStyle: 'fade',
+    buttonBackground: '#ff6347',
+    buttonBorderRadius: '8px',
+    buttonFontSize: '14px',
+    buttonMaxLength: 34,
+});
+
+function showSuccess(message, title = 'Success') {
+    Notiflix.Report.success(title, message, 'OK');
+}
+
+function showError(message, title = 'Error') {
+    Notiflix.Report.failure(title, message, 'OK');
+}
+
+function showWarning(message, title = 'Warning') {
+    Notiflix.Report.warning(title, message, 'OK');
+}
     </script>
 	</body>
 </html>
