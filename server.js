@@ -17,6 +17,7 @@ const playerSessions = new Map();
 let gameStarted = false;
 
 io.on('connection', (socket) => {
+	console.log('A client connected:', socket.id);
 
     // Handle game board connection
     socket.on('registerGameBoard', () => {
@@ -95,7 +96,7 @@ io.on('connection', (socket) => {
         if (!currentPlayer || currentPlayer.id !== socket.id) {
             return;
         }
-
+console.log('Dice roll received from:', socket.id);
         const roll = Math.floor(Math.random() * 6) + 1;
 
         io.emit('diceRolled', {
