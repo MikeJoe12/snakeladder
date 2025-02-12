@@ -53,22 +53,28 @@
             border-radius: 10px;
         }
 
-        .player {
-            width: 5%;
-            height: 5%;
-            border-radius: 50%;
-            position: absolute;
-            transition: all 1.5s ease;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-            z-index: 10;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            color: white;
-            font-weight: bold;
-            font-size: min(2vh, 2vw);
-        }
-
+.player {
+    width: auto;  /* Let it grow based on content */
+    min-width: 8%;  /* Minimum width */
+    height: 5%;
+    padding: 0 2px;  /* Add some padding for text */
+    border-radius: 15px;  /* Make it more pill-shaped for longer names */
+    position: absolute;
+    transition: all 1.5s ease;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    z-index: 10;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: white;
+    font-weight: bold;
+    font-size: min(1.5vh, 1.5vw);  /* Smaller font size */
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+    white-space: nowrap;  /* Keep name on one line */
+    overflow: hidden;
+    text-overflow: ellipsis;  /* Show ... if name is too long */
+    max-width: 15%;  /* Maximum width to prevent oversized tokens */
+}
         .controls {
             min-width: 300px;
             max-width: 400px;
@@ -646,16 +652,15 @@ initializeGame(numPlayers) {
         position: 1,
         name: `Waiting for player ${i + 1}...`
     }));
-
-    this.players.forEach(player => {
-        const playerElement = document.createElement('div');
-        playerElement.className = 'player';
-        playerElement.id = `player${player.id}`;
-        playerElement.style.backgroundColor = player.color;
-        playerElement.textContent = player.id;
-        this.board.appendChild(playerElement);
-        this.updatePlayerPosition(player);
-    });
+this.players.forEach(player => {
+    const playerElement = document.createElement('div');
+    playerElement.className = 'player';
+    playerElement.id = `player${player.id}`;
+    playerElement.style.backgroundColor = player.color;
+    playerElement.textContent = player.name || `Player ${player.id}`;
+    this.board.appendChild(playerElement);
+    this.updatePlayerPosition(player);
+});
 
     document.getElementById('setupPanel').classList.add('hidden');
     this.gameInfo.classList.remove('hidden');
@@ -671,7 +676,7 @@ initializeGame(numPlayers) {
                 const position = this.positions.get(player.position);
                 if (!position) return;
 
-                playerElement.style.left = `${position.x + 2.5}%`;
+                playerElement.style.left = `${position.x + 0.8}%`;
                 playerElement.style.top = `${position.y + 2.5}%`;
             }
 
@@ -788,12 +793,15 @@ updatePlayerNames(players) {
     players.forEach((player, index) => {
         if (index < this.players.length) {
             this.players[index].name = player.username;
+            // Update the token text
+            const playerElement = document.getElementById(`player${this.players[index].id}`);
+            if (playerElement) {
+                playerElement.textContent = player.username;
+            }
         }
     });
     this.updatePlayerInfo();
-
 }
-
 
             resetGame() {
                 this.players.forEach(player => {
