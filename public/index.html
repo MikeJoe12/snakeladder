@@ -732,15 +732,12 @@ async rollDice(forcedRoll = null) {
 
     await this.movePlayer(result);
 
-    // Ensure the player only wins if they land exactly on position 100
+    // Check for win condition (position 100)
     if (this.players[this.currentPlayer].position === 100) {
-    const winSound = document.getElementById('winSound');
-    winSound.currentTime = 0;
-    winSound.play().catch(err => console.log('Error playing sound:', err));
+        const winSound = document.getElementById('winSound');
+        winSound.currentTime = 0;
+        winSound.play().catch(err => console.log('Error playing sound:', err));
         showSuccess(`🎉 Congratulations! ${this.players[this.currentPlayer].name} wins the game! 🎉`, '👑 Snakes & Ladders WINNER!');
-		//alert(`Player ${this.players[this.currentPlayer].id} wins!`);
-        this.resetGame();
-        return;
     }
 
     this.currentPlayer = (this.currentPlayer + 1) % this.players.length;
